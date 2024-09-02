@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "This is backend of youtube and twitter mix",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon src/index.js"
   },
   "keywords": [
     "backend",
@@ -15,5 +16,11 @@
     "level"
   ],
   "author": "Samarth Gupta",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "dependencies": {
+    "prettier": "^3.3.3"
+  }
 }
