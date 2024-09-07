@@ -4,6 +4,24 @@ import { User } from "../models/user.model.js";
 import { uploadFileOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+const generateAccessAndRefereshTokens = async (userId) => {
+    try {
+        const user = await User.findById(userId);
+        const accessToken = user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
+
+        user.refreshToken = refreshToken;
+        await user.save({ validateBeforeSave: false });
+
+        return { accessToken, refreshToken };
+    } catch (error) {
+        throw new ApiError(
+            500,
+            "Something went wrong while generating referesh and access token"
+        );
+    }
+};
+
 const registerUser = asyncHandler(async (req, res) => {
     // get user detail
     const { username, email, fullName, password } = req.body;
@@ -117,20 +135,18 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     // give refresh and access token to user
-    const accessToken = await user.generateAccessToken();
-    const refreshToken = await user.generateRefreshToken();
+    const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(
+        user._id
+    );
 
-    if (accessToken == "" || refreshToken == "") {
-        throw new ApiError(500, "Access or Refresh token generation failed");
-    }
-
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    const loggedInUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    );
 
     // Send cookie
     const options = {
         httpOnly: true,
-        secure: true,
+        secure: false,
     };
 
     return res
@@ -141,7 +157,7 @@ const loginUser = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 {
-                    user: user,
+                    user: loggedInUser,
                     accessToken,
                     refreshToken,
                 },
@@ -151,12 +167,11 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
     await User.findByIdAndUpdate(
-        userId,
+        req.user._id,
         {
-            $set: {
-                refreshToken: undefined,
+            $unset: {
+                refreshToken: 1,
             },
         },
         {
@@ -166,7 +181,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true,
+        secure: false,
     };
 
     return res
