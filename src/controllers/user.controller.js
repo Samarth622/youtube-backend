@@ -200,19 +200,22 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             incomingRefreshToken,
             process.env.REFRESH_TOKEN_SECRET
         );
-    
+
         const user = await User.findById(decodedInfo?._id);
         if (!user) {
             throw new ApiError(401, "Invalid refresh token");
         }
-    
+
         if (user?.refreshToken !== incomingRefreshToken) {
-            throw new ApiError(401, "Incoming refresh token is invalid or expired");
+            throw new ApiError(
+                401,
+                "Incoming refresh token is invalid or expired"
+            );
         }
-    
+
         const { accessToken, newrefreshToken } =
             await generateAccessAndRefereshTokens(user._id);
-    
+
         return res
             .status(200)
             .cookie("accessToken", accessToken, options)
@@ -228,8 +231,108 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
                 )
             );
     } catch (error) {
-        throw new ApiError(401, error?.message || "Invalid refresh token")
+        throw new ApiError(401, error?.message || "Invalid refresh token");
     }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    const passwordCheck = await user.isPasswordCorrect(oldPassword);
+    if (!passwordCheck) {
+        throw new ApiError(400, "Invalid Old Password");
+    }
+
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Password changed successfully"));
+});
+
+const getUser = asyncHandler(async (req, res) => {
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                user: req.user,
+            },
+            "Cuurent user fetched successfully"
+        )
+    );
+});
+
+const changeAvatar = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+        throw new ApiError(400, "User is not authorized");
+    }
+
+    const avatarLocalPath = req.files?.avatar[0]?.path;
+
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Your new avatar is required");
+    }
+
+    const newAvatar = await uploadFileOnCloudinary(avatarLocalPath);
+    if (!newAvatar) {
+        throw new ApiError(400, "New Avatar is not upload on cloudinary.");
+    }
+
+    user.avatar = newAvatar;
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                newAvatar,
+            },
+            "Avatar changes successfully"
+        )
+    );
+});
+
+const updateDetail = asyncHandler(async (req, res) => {
+    const { newemail, newfullName } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        throw new ApiError(401, "User is unauthorized");
+    }
+
+    if (newemail !== "") {
+        user.email = newemail;
+    }
+
+    if (newfullName !== "") {
+        user.fullName = newfullName;
+    }
+
+    await user.save({ validateBeforeSave: false });
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { user },
+                "Email or Fullname changed successfully"
+            )
+        );
+});
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    changeCurrentPassword,
+    getUser,
+    changeAvatar,
+    updateDetail
+};
