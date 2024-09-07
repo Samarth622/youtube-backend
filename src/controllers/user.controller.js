@@ -266,12 +266,6 @@ const getUser = asyncHandler(async (req, res) => {
 });
 
 const changeAvatar = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id);
-
-    if (!user) {
-        throw new ApiError(400, "User is not authorized");
-    }
-
     const avatarLocalPath = req.files?.avatar[0]?.path;
 
     if (!avatarLocalPath) {
@@ -283,14 +277,23 @@ const changeAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "New Avatar is not upload on cloudinary.");
     }
 
-    user.avatar = newAvatar;
-    await user.save({ validateBeforeSave: false });
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                avatar: newAvatar,
+            },
+        },
+        {
+            new: true,
+        }
+    ).select("-password -refreshToken");
 
     return res.status(200).json(
         new ApiResponse(
             200,
             {
-                newAvatar,
+                user,
             },
             "Avatar changes successfully"
         )
@@ -298,22 +301,24 @@ const changeAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateDetail = asyncHandler(async (req, res) => {
-    const { newemail, newfullName } = req.body;
+    const { email, fullName } = req.body;
 
-    const user = await User.findById(req.user._id);
-    if (!user) {
-        throw new ApiError(401, "User is unauthorized");
+    if (!email || !fullName) {
+        throw new ApiError(400, "Email and Full Name is required.");
     }
 
-    if (newemail !== "") {
-        user.email = newemail;
-    }
-
-    if (newfullName !== "") {
-        user.fullName = newfullName;
-    }
-
-    await user.save({ validateBeforeSave: false });
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                fullName,
+                email,
+            },
+        },
+        {
+            new: true,
+        }
+    ).select("-password -refreshToken");
 
     return res
         .status(200)
@@ -321,7 +326,7 @@ const updateDetail = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 { user },
-                "Email or Fullname changed successfully"
+                "Email and Fullname changed successfully"
             )
         );
 });
@@ -334,5 +339,5 @@ export {
     changeCurrentPassword,
     getUser,
     changeAvatar,
-    updateDetail
+    updateDetail,
 };
