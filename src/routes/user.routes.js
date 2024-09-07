@@ -3,6 +3,7 @@ import {
     changeAvatar,
     changeCurrentPassword,
     getUser,
+    getUserChannelProfile,
     loginUser,
     logoutUser,
     refreshAccessToken,
@@ -33,9 +34,9 @@ router.route("/refreshAccessToken").post(refreshAccessToken);
 
 // secure routes
 router.route("/logout").post(verifyJWT, logoutUser);
-router.route("/changePassword").post(verifyJWT, changeCurrentPassword);
+router.route("/changePassword").patch(verifyJWT, changeCurrentPassword);
 router.route("/userDetail").get(verifyJWT, getUser);
-router.route("/updateAvatar").post(
+router.route("/updateAvatar").patch(
     verifyJWT,
     upload.fields([
         {
@@ -45,6 +46,7 @@ router.route("/updateAvatar").post(
     ]),
     changeAvatar
 );
-router.route("/updateUserDetail").post(verifyJWT, updateDetail);
+router.route("/updateUserDetail").patch(verifyJWT, updateDetail);
+router.route("/getChannel/:username").get(verifyJWT, getUserChannelProfile);
 
 export default router;
